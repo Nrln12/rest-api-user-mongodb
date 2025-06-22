@@ -1,0 +1,67 @@
+package main
+
+import (
+	"context"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"log"
+	"net/http"
+	"os"
+	"user-api/service"
+)
+
+var mongoClient *mongo.Client
+
+func init() {
+	// load .env file
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	log.Println("env file loaded")
+
+	// create mongo client
+	mongoClient, err = mongo.Connect(context.Background(), options.Client().ApplyURI(os.Getenv("MONGO_URI")))
+	if err != nil {
+		log.Fatal("connection error", err)
+	}
+
+	err = mongoClient.Ping(context.Background(), readpref.Primary())
+	if err != nil {
+		log.Fatal("ping failed", err)
+	}
+	log.Println("Connected to MongoDB")
+}
+
+func main() {
+	// close mongo connection
+	defer mongoClient.Disconnect(context.Background())
+
+	collection := mongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
+
+	// create employee service
+	empService := service.EmployeeService{MongoCollection: collection}
+
+	router := mux.NewRouter()
+	router.HandleFunc("/health", healthHandler).Methods(http.MethodGet)
+
+	router.HandleFunc("/employees", empService.CreateEmployee).Methods(http.MethodPost)
+	router.HandleFunc("/employees/{id}", empService.GetEmployeeById).Methods(http.MethodGet)
+	router.HandleFunc("/employees", empService.GetAllEmployees).Methods(http.MethodGet)
+	router.HandleFunc("/employees", empService.UpdateEmployee).Methods(http.MethodPut)
+	router.HandleFunc("/employees/{id}", empService.DeleteEmployee).Methods(http.MethodDelete)
+	router.HandleFunc("/employees", empService.DeleteAllEmployees).Methods(http.MethodDelete)
+	log.Println("Starting server on 8080")
+	err := http.ListenAndServe(":8080", router)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("running..."))
+}
