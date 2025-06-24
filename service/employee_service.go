@@ -13,7 +13,7 @@ import (
 )
 
 type EmployeeService struct {
-	MongoCollection *mongo.Collection
+	EmployeeRepository *repository.EmployeeRepository
 }
 
 type Response struct {
@@ -36,10 +36,9 @@ func (service *EmployeeService) CreateEmployee(w http.ResponseWriter, r *http.Re
 
 	// assign new employee id
 	emp.EmployeeId = uuid.NewString()
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
 
 	//insert employee
-	employeeId, err := empRepository.InsertEmployee(&emp)
+	employeeId, err := service.EmployeeRepository.InsertEmployee(&emp)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("error inserting employee: ", err)
@@ -61,8 +60,7 @@ func (service *EmployeeService) GetEmployeeById(w http.ResponseWriter, r *http.R
 	employeeId := mux.Vars(r)["id"]
 	log.Println("employee id: ", employeeId)
 
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
-	emp, err := empRepository.FindEmployeeById(employeeId)
+	emp, err := service.EmployeeRepository.FindEmployeeById(employeeId)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			w.WriteHeader(http.StatusNotFound)
@@ -83,8 +81,7 @@ func (service *EmployeeService) GetAllEmployees(w http.ResponseWriter, r *http.R
 	defer json.NewEncoder(w).Encode(response)
 
 	// get all employees
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
-	employees, err := empRepository.FindAllEmployee()
+	employees, err := service.EmployeeRepository.FindAllEmployee()
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			w.WriteHeader(http.StatusNotFound)
@@ -127,8 +124,7 @@ func (service *EmployeeService) UpdateEmployee(w http.ResponseWriter, r *http.Re
 	}
 
 	emp.EmployeeId = empId
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
-	count, err := empRepository.UpdateEmployeeById(empId, &emp)
+	count, err := service.EmployeeRepository.UpdateEmployeeById(empId, &emp)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			w.WriteHeader(http.StatusNotFound)
@@ -160,8 +156,7 @@ func (service *EmployeeService) DeleteEmployee(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
-	count, err := empRepository.DeleteEmployeeById(empId)
+	count, err := service.EmployeeRepository.DeleteEmployeeById(empId)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			w.WriteHeader(http.StatusNotFound)
@@ -181,8 +176,7 @@ func (service *EmployeeService) DeleteAllEmployees(w http.ResponseWriter, r *htt
 	response := &Response{}
 	defer json.NewEncoder(w).Encode(response)
 
-	empRepository := repository.EmployeeRepository{MongoCollection: service.MongoCollection}
-	count, err := empRepository.DeleteAllEmployee()
+	count, err := service.EmployeeRepository.DeleteAllEmployee()
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			w.WriteHeader(http.StatusNotFound)

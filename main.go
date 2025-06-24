@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"user-api/repository"
 	"user-api/service"
 )
 
@@ -49,17 +50,21 @@ func main() {
 	collection := client.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
 
 	// create employee service
-	empService := service.EmployeeService{MongoCollection: collection}
+	employeeRepository := repository.EmployeeRepository{MongoCollection: collection}
+	empService := service.EmployeeService{EmployeeRepository: &employeeRepository}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/health", healthHandler).Methods(http.MethodGet)
+	subRouter := router.PathPrefix("/api/v1").Subrouter()
 
-	router.HandleFunc("/employees", empService.CreateEmployee).Methods(http.MethodPost)
-	router.HandleFunc("/employees/{id}", empService.GetEmployeeById).Methods(http.MethodGet)
-	router.HandleFunc("/employees", empService.GetAllEmployees).Methods(http.MethodGet)
-	router.HandleFunc("/employees", empService.UpdateEmployee).Methods(http.MethodPut)
-	router.HandleFunc("/employees/{id}", empService.DeleteEmployee).Methods(http.MethodDelete)
-	router.HandleFunc("/employees", empService.DeleteAllEmployees).Methods(http.MethodDelete)
+	subRouter.HandleFunc("/health", healthHandler).Methods(http.MethodGet)
+
+	employeeRouter := subRouter.PathPrefix("/employees").Subrouter()
+	employeeRouter.HandleFunc("", empService.CreateEmployee).Methods(http.MethodPost)
+	employeeRouter.HandleFunc("/{id}", empService.GetEmployeeById).Methods(http.MethodGet)
+	employeeRouter.HandleFunc("", empService.GetAllEmployees).Methods(http.MethodGet)
+	employeeRouter.HandleFunc("/{id}", empService.UpdateEmployee).Methods(http.MethodPut)
+	employeeRouter.HandleFunc("/{id}", empService.DeleteEmployee).Methods(http.MethodDelete)
+	employeeRouter.HandleFunc("", empService.DeleteAllEmployees).Methods(http.MethodDelete)
 	log.Println("Starting server on 8080")
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
