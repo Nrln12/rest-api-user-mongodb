@@ -13,7 +13,7 @@ import (
 	"user-api/service"
 )
 
-var mongoClient *mongo.Client
+var client *mongo.Client
 
 func init() {
 	// load .env file
@@ -23,13 +23,19 @@ func init() {
 	}
 	log.Println("env file loaded")
 
+	// set creadentials
+	credential := options.Credential{
+		Username:   os.Getenv("MONGO_USERNAME"),
+		Password:   os.Getenv("MONGO_PASSWORD"),
+		AuthSource: os.Getenv("MONGO_AUTH_SOURCE"),
+	}
 	// create mongo client
-	mongoClient, err = mongo.Connect(context.Background(), options.Client().ApplyURI(os.Getenv("MONGO_URI")))
+	client, err = mongo.Connect(context.Background(), options.Client().ApplyURI(os.Getenv("MONGO_URI")).SetAuth(credential))
 	if err != nil {
 		log.Fatal("connection error", err)
 	}
 
-	err = mongoClient.Ping(context.Background(), readpref.Primary())
+	err = client.Ping(context.Background(), readpref.Primary())
 	if err != nil {
 		log.Fatal("ping failed", err)
 	}
@@ -38,9 +44,9 @@ func init() {
 
 func main() {
 	// close mongo connection
-	defer mongoClient.Disconnect(context.Background())
+	defer client.Disconnect(context.Background())
 
-	collection := mongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
+	collection := client.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
 
 	// create employee service
 	empService := service.EmployeeService{MongoCollection: collection}
